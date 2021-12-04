@@ -48,6 +48,7 @@ public class MobilewallaServiceImpl implements MobilewallaService {
 
     private static final String KREDIVO_BASE_URL = "https://kredivo-sdk-api-dev.mobilewalla.com/kredivo-v1/";
     private static String TOKEN = "";
+    private final SimpleDateFormat dateFormat;
     protected String userId;
     protected String eventId;
     protected String deviceId;
@@ -56,7 +57,11 @@ public class MobilewallaServiceImpl implements MobilewallaService {
     private boolean newDeviceIdPerInstall = false;
     private boolean useAdvertisingIdForDeviceId = false;
     private boolean useAppSetIdForDeviceId = false;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+    public MobilewallaServiceImpl() {
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+    }
 
     public String getPlatform() {
         return platform;
@@ -149,40 +154,32 @@ public class MobilewallaServiceImpl implements MobilewallaService {
         try {
             Event event = new Event();
 
+            event.setEventTime(dateFormat.format(new Date()));
             event.setUserId(userId);
             event.setEventId(eventId);
-            event.setEventType(eventType);
-            event.setEventProperties(getString(eventProperties));
-            event.setUserProperties(getString(userProperties));
-            event.setGlobalUserProperties(getString(globalUserProperties));
-            event.setGroupProperties(getString(groupProperties));
-
-//            event.setApp(Integer.parseInt(getDeviceInfo().getAppSetId()));
+            event.setPlatform(platform);
             event.setDeviceId(deviceId);
             event.setSessionId(sessionId);
-            event.setVersionName(getDeviceInfo().getVersionName());
-            event.setPlatform(platform);
+            event.setEventType(eventType);
             event.setOsName(getDeviceInfo().getOsName());
-            event.setOsVersion(getDeviceInfo().getOsVersion());
-            event.setDeviceBrand(getDeviceInfo().getBrand());
-            event.setDeviceManufacturer(getDeviceInfo().getManufacturer());
-            event.setDeviceModel(getDeviceInfo().getModel());
-//            event.setDeviceFamily(getDeviceInfo().getDeviceFamily());
-//            event.setDeviceType(getDeviceInfo().getDeviceType());
-            event.setDeviceCarrier(getDeviceInfo().getCarrier());
-            if (getDeviceInfo().getMostRecentLocation() != null) {
-                event.setLatitude(getDeviceInfo().getMostRecentLocation().getLatitude());
-                event.setLongitude(getDeviceInfo().getMostRecentLocation().getLongitude());
-            }
-//            event.setIpAddress(getDeviceInfo().getIpAddress());
             event.setCountry(getDeviceInfo().getCountry());
             event.setLanguage(getDeviceInfo().getLanguage());
+            event.setDeviceBrand(getDeviceInfo().getBrand());
+            event.setDeviceModel(getDeviceInfo().getModel());
+            event.setOsVersion(getDeviceInfo().getOsVersion());
+            event.setUserProperties(getString(userProperties));
+            event.setGroupProperties(getString(groupProperties));
+            event.setEventProperties(getString(eventProperties));
+            event.setDeviceCarrier(getDeviceInfo().getCarrier());
+            event.setVersionName(getDeviceInfo().getVersionName());
+            event.setGlobalUserProperties(getString(globalUserProperties));
+            event.setDeviceManufacturer(getDeviceInfo().getManufacturer());
             event.setLibrary(Constants.LIBRARY + "/" + Constants.VERSION);
-//            event.setCity(getDeviceInfo().getCity());
-//            event.setRegion(getDeviceInfo().getRegion());
-            dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Jayapura"));
-            event.setEventTime(dateFormat.format(new Date()));
-//            event.setServerUploadTime(String.valueOf(System.currentTimeMillis()));
+            event.setUuid(UUID.randomUUID().toString());
+//            event.setApp(Integer.parseInt(getDeviceInfo().getAppSetId()));
+//            event.setDeviceFamily(getDeviceInfo().getDeviceFamily());
+//            event.setDeviceType(getDeviceInfo().getDeviceType());
+//            event.setIpAddress(getDeviceInfo().getIpAddress());
 //            event.setIdfa();
 //            event.setAdid();
 //            event.setStartVersion();
@@ -190,7 +187,11 @@ public class MobilewallaServiceImpl implements MobilewallaService {
 //            event.getUserCreationTime();
 //            event.setClientUploadTime();
 //            event.setProcessedTime();
-            event.setUuid(UUID.randomUUID().toString());
+            if (getDeviceInfo().getMostRecentLocation() != null) {
+                event.setLatitude(getDeviceInfo().getMostRecentLocation().getLatitude());
+                event.setLongitude(getDeviceInfo().getMostRecentLocation().getLongitude());
+            }
+            event.setServerUploadTime(dateFormat.format(new Date()));
 
             postRequest(getCallback()::onResponse, getErrorCallback()::onError, event);
         } catch (Exception ignored) {
