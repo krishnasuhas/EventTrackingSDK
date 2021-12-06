@@ -11,11 +11,14 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.mobilewalla.eventtracking.api.Constants;
 import com.mobilewalla.eventtracking.api.Mobilewalla;
 import com.mobilewalla.eventtracking.api.MobilewallaClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity2 extends AppCompatActivity {
     Button btn_postEvent, bt_logout;
@@ -58,9 +61,8 @@ public class MainActivity2 extends AppCompatActivity {
 
     private void setupPostEvent() {
         MobilewallaClient client = Mobilewalla.getInstance()
-                .initialize(getApplicationContext(), sessionManager.getUsername())
+                .initialize(getApplicationContext(), "userId_1")
                 .enableForegroundTracking(getApplication());
-        client.setLogLevel(DEBUG);
 
         JSONObject eventProperties = new JSONObject();
         JSONObject userProperties = new JSONObject();
@@ -75,7 +77,7 @@ public class MainActivity2 extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        btn_postEvent.setOnClickListener(v -> client.logEvent("003", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
+        btn_postEvent.setOnClickListener(v -> client.logEvent("eventType_1", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
     }
 
     private void setViews() {

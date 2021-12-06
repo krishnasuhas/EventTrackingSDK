@@ -9,4 +9,3 @@ dependencyResolutionManagement {
 rootProject.name = "EventTrackingApp"
 include ':app'
 include ':EventTracking'
-include ':log'

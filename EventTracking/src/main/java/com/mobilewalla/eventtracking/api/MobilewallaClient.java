@@ -1,7 +1,6 @@
 package com.mobilewalla.eventtracking.api;
 
-import static com.mobilewalla.eventtracking.api.Constants.AUTHENTICATE_PASSWORD;
-import static com.mobilewalla.eventtracking.api.Constants.AUTHENTICATE_USERNAME;
+import static com.mobilewalla.eventtracking.api.Constants.API_PASSWORD;
 import static com.mobilewalla.eventtracking.api.Constants.JSON;
 import static com.mobilewalla.eventtracking.api.Constants.POST_AUTHENTICATE;
 import static com.mobilewalla.eventtracking.api.Constants.POST_EVENT;
@@ -145,7 +144,9 @@ public class MobilewallaClient {
     /**
      * The url for Mobilewalla API endpoint
      */
-    String url = Constants.EVENT_LOG_URL;
+    String url = Constants.API_BASE_URL;
+    String serverUsername = Constants.API_USERNAME;
+    String serverPassword = API_PASSWORD;
     /**
      * The Bearer Token for authentication
      */
@@ -183,7 +184,6 @@ public class MobilewallaClient {
     private String libraryVersion = Constants.VERSION;
     private AtomicBoolean updateScheduled = new AtomicBoolean(false);
     private SimpleDateFormat dateFormat;
-    private ApiRequest authenticateReq;
 
     /**
      * Instantiates a new default instance MobilewallaClient and starts worker threads.
@@ -201,7 +201,6 @@ public class MobilewallaClient {
         this.instanceName = Utils.normalizeInstanceName(instance);
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-        authenticateReq = new ApiRequest(AUTHENTICATE_USERNAME, AUTHENTICATE_PASSWORD);
         logThread.start();
         httpThread.start();
     }
@@ -407,6 +406,22 @@ public class MobilewallaClient {
         boolean oldValue = prefs.getBoolean(prefKey, defValue);
         dbHelper.insertOrReplaceKeyLongValue(dbKey, oldValue ? 1L : 0L);
         prefs.edit().remove(prefKey).apply();
+    }
+
+    /**
+     * Initialize the Mobilewalla SDK with the Android application context, your Mobilewalla App API
+     * key, and a user ID for the current user. <b>Note:</b> initialization is required before
+     * you log events and modify user properties.
+     *
+     * @param context the Android application context
+     * @param userId  the user id to set
+     * @return the MobilewallaClient
+     */
+    public MobilewallaClient initialize(Context context, String userId, String api_base_url, String apiUsername, String apiPassword) {
+        setServerUrl(api_base_url);
+        setServerUsername(apiUsername);
+        setServerPassword(apiPassword);
+        return initializeInternal(context, userId, null, null);
     }
 
     /**
@@ -679,6 +694,32 @@ public class MobilewallaClient {
     public MobilewallaClient setServerUrl(String serverUrl) {
         if (!Utils.isEmptyString(serverUrl)) {
             url = serverUrl;
+        }
+        return this;
+    }
+
+    /**
+     * Sets a custom server url for event upload.
+     *
+     * @param username - a string username for event upload.
+     * @return the MobilewallaClient
+     */
+    public MobilewallaClient setServerUsername(String username) {
+        if (!Utils.isEmptyString(username)) {
+            this.serverUsername = username;
+        }
+        return this;
+    }
+
+    /**
+     * Sets a custom server url for event upload.
+     *
+     * @param password - a string password for event upload.
+     * @return the MobilewallaClient
+     */
+    public MobilewallaClient setServerPassword(String password) {
+        if (!Utils.isEmptyString(password)) {
+            this.serverPassword = password;
         }
         return this;
     }
@@ -1698,13 +1739,13 @@ public class MobilewallaClient {
     protected Pair<Long, JSONArray> getEventsWithMaxId(List<JSONObject> events, long numEvents) throws JSONException {
         JSONArray merged = new JSONArray();
         long maxEventId = -1;
-        long count = 0;
+        int count = 0;
 
         while (count < numEvents) {
-            JSONObject event = events.get(0);
+            JSONObject event = events.get(count++);
+            event.put("serverUploadTime", dateFormat.format(new Date()));
             maxEventId = event.getLong("eventId");
             merged.put(event);
-            count++;
         }
 
         return new Pair<>(maxEventId, merged);
@@ -1721,6 +1762,7 @@ public class MobilewallaClient {
         Request authenticateRequest;
         Request.Builder eventRequestBuilder;
         try {
+            ApiRequest authenticateReq = new ApiRequest(this.serverUsername, this.serverPassword);
             RequestBody authenticateRequestBody = RequestBody.create(JSON, mapper.writeValueAsString(authenticateReq));
             Request.Builder authenticateRequestBuilder = new Request.Builder()
                     .url(url + POST_AUTHENTICATE)
@@ -1742,58 +1784,50 @@ public class MobilewallaClient {
 
         try {
             if (Utils.isEmptyString(bearerToken)) {
-                Response authenticateResponse = client.newCall(authenticateRequest).execute();
-                ResponseBody response = authenticateResponse.body();
-                try {
-                    ApiResponse authenticateApiResponse = mapper.readValue(response.string(), ApiResponse.class);
-                    bearerToken = authenticateApiResponse.getToken();
-                    logger.d(TAG, "Successfully called an authenticate API");
-                } catch (Exception e) {
-                    logger.e(TAG, "Error in calling authenticate API");
-                }
+                postAuthenticateRequest(client, authenticateRequest);
             }
-
 
             if (!Utils.isEmptyString(bearerToken)) {
                 eventRequestBuilder.addHeader("Authorization", bearerToken);
-            }
-            Request eventRequest = eventRequestBuilder.build();
-            Response eventResponse = client.newCall(eventRequest).execute();
-            ResponseBody response = eventResponse.body();
-            ApiResponse apiResponse = mapper.readValue(response.string(), ApiResponse.class);
-            if (apiResponse.getMessage().equals("Received successfully.")) {
-                logger.d(TAG, "Successfully posted an event to API server");
-                uploadSuccess = true;
-                logThread.post(() -> {
-                    if (maxEventId >= 0) dbHelper.removeEvents(maxEventId);
-                    uploadingCurrently.set(false);
-                    if (dbHelper.getTotalEventCount() > eventUploadThreshold) {
-                        logThread.post(() -> updateServer(backoffUpload));
-                    } else {
-                        backoffUpload = false;
-                        backoffUploadBatchSize = eventUploadMaxBatchSize;
+                Request eventRequest = eventRequestBuilder.build();
+                Response eventResponse = client.newCall(eventRequest).execute();
+                if (eventResponse.code() == 200) {
+                    logger.d(TAG, "Successfully posted an events to API server");
+                    uploadSuccess = true;
+                    logThread.post(() -> {
+                        if (maxEventId >= 0) dbHelper.removeEvents(maxEventId);
+                        uploadingCurrently.set(false);
+                        if (dbHelper.getTotalEventCount() > eventUploadThreshold) {
+                            logThread.post(() -> updateServer(backoffUpload));
+                        } else {
+                            backoffUpload = false;
+                            backoffUploadBatchSize = eventUploadMaxBatchSize;
+                        }
+                    });
+                } else if (eventResponse.code() == 401) {
+                    boolean isAuthenticated = postAuthenticateRequest(client, authenticateRequest);
+                    if (isAuthenticated) {
+                        makeEventUploadPostRequest(client, events, maxEventId);
                     }
-                });
-            } else if (eventResponse.code() == 413) {
+                } else if (eventResponse.code() == 413) {
+                    // If blocked by one massive event, drop it
+                    if (backoffUpload && backoffUploadBatchSize == 1) {
+                        if (maxEventId >= 0) dbHelper.removeEvent(maxEventId);
+                        // maybe we want to reset backoffUploadBatchSize after dropping massive event
+                    }
 
-                // If blocked by one massive event, drop it
-                if (backoffUpload && backoffUploadBatchSize == 1) {
-                    if (maxEventId >= 0) dbHelper.removeEvent(maxEventId);
-                    // maybe we want to reset backoffUploadBatchSize after dropping massive event
+                    // Server complained about length of request, backoff and try again
+                    backoffUpload = true;
+                    int numEvents = Math.min((int) dbHelper.getEventCount(), backoffUploadBatchSize);
+                    backoffUploadBatchSize = (int) Math.ceil(numEvents / 2.0);
+                    logger.w(TAG, "Request too large, will decrease size and attempt to reupload");
+                    logThread.post(() -> {
+                        uploadingCurrently.set(false);
+                        updateServer(true);
+                    });
+                } else {
+                    logger.w(TAG, "Upload failed, " + eventResponse.code() + ", will attempt to reupload later");
                 }
-
-                // Server complained about length of request, backoff and try again
-                backoffUpload = true;
-                int numEvents = Math.min((int) dbHelper.getEventCount(), backoffUploadBatchSize);
-                backoffUploadBatchSize = (int) Math.ceil(numEvents / 2.0);
-                logger.w(TAG, "Request too large, will decrease size and attempt to reupload");
-                logThread.post(() -> {
-                    uploadingCurrently.set(false);
-                    updateServer(true);
-                });
-            } else {
-                logger.w(TAG, "Upload failed, " + eventResponse.code() + ", will attempt to reupload later");
-                logger.i(TAG, "Pending events in DB " + dbHelper.getTotalEventCount());
             }
         } catch (java.net.ConnectException e) {
             logger.w(TAG, "No internet connection found, unable to upload events");
@@ -1817,6 +1851,24 @@ public class MobilewallaClient {
         if (!uploadSuccess) {
             uploadingCurrently.set(false);
         }
+    }
+
+    private boolean postAuthenticateRequest(Call.Factory client, Request authenticateRequest) throws IOException {
+        Response authenticateResponse = client.newCall(authenticateRequest).execute();
+        ResponseBody response = authenticateResponse.body();
+        try {
+            ApiResponse authenticateApiResponse = mapper.readValue(response.string(), ApiResponse.class);
+            if (authenticateResponse.code() == 200) {
+                bearerToken = authenticateApiResponse.getToken();
+                logger.d(TAG, "Successfully called an authenticate API");
+                return true;
+            } else {
+                logger.e(TAG, "Error in calling authenticate API : " + authenticateApiResponse.getMessage());
+            }
+        } catch (Exception e) {
+            logger.e(TAG, "Error in calling authenticate API");
+        }
+        return false;
     }
 
     /**
