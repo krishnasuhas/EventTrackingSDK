@@ -15,6 +15,8 @@ public class Constants {
     public static final String EVENT_LOG_URL = "https://kredivo-sdk-api-dev.mobilewalla.com/kredivo-v1/";
     public static final String POST_AUTHENTICATE = "authentication";
     public static final String POST_EVENT = "event";
+    public static final String AUTHENTICATE_USERNAME = "user";
+    public static final String AUTHENTICATE_PASSWORD = "password";
     public static final MediaType JSON  = MediaType.parse("application/json; charset=utf-8");
     public static final String PACKAGE_NAME = "com.mobilewalla.eventtracking";
 

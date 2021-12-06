@@ -1,5 +1,7 @@
 package com.mobilewalla.eventtracking.api;
 
+import static com.mobilewalla.eventtracking.api.Constants.AUTHENTICATE_PASSWORD;
+import static com.mobilewalla.eventtracking.api.Constants.AUTHENTICATE_USERNAME;
 import static com.mobilewalla.eventtracking.api.Constants.JSON;
 import static com.mobilewalla.eventtracking.api.Constants.POST_AUTHENTICATE;
 import static com.mobilewalla.eventtracking.api.Constants.POST_EVENT;
@@ -90,7 +92,7 @@ public class MobilewallaClient {
      */
     private static final String TAG = MobilewallaClient.class.getName();
     private static final MobilewallaLog logger = MobilewallaLog.getLogger();
-
+    private static final ObjectMapper mapper = new ObjectMapper();
     /**
      * The Android App Context.
      */
@@ -181,7 +183,7 @@ public class MobilewallaClient {
     private String libraryVersion = Constants.VERSION;
     private AtomicBoolean updateScheduled = new AtomicBoolean(false);
     private SimpleDateFormat dateFormat;
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private ApiRequest authenticateReq;
 
     /**
      * Instantiates a new default instance MobilewallaClient and starts worker threads.
@@ -199,6 +201,7 @@ public class MobilewallaClient {
         this.instanceName = Utils.normalizeInstanceName(instance);
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        authenticateReq = new ApiRequest(AUTHENTICATE_USERNAME, AUTHENTICATE_PASSWORD);
         logThread.start();
         httpThread.start();
     }
@@ -1663,13 +1666,13 @@ public class MobilewallaClient {
                 List<JSONObject> events = dbHelper.getEvents(lastEventId, batchSize);
 
                 final Pair<Long, JSONArray> merged = getEventsWithMaxId(events, batchSize);
-                if (merged.second.length() == 0) {
+                if (events.size() == 0) {
                     uploadingCurrently.set(false);
                     return;
                 }
-                final long maxEventId = merged.first;
-
-                httpThread.post(() -> makeEventUploadPostRequest(callFactory, events, maxEventId));
+                JSONObject eventWrapper = new JSONObject();
+                eventWrapper.put("events", merged.second);
+                httpThread.post(() -> makeEventUploadPostRequest(callFactory, eventWrapper, merged.first));
             } catch (JSONException e) {
                 uploadingCurrently.set(false);
                 logger.e(TAG, e.toString());
@@ -1695,11 +1698,13 @@ public class MobilewallaClient {
     protected Pair<Long, JSONArray> getEventsWithMaxId(List<JSONObject> events, long numEvents) throws JSONException {
         JSONArray merged = new JSONArray();
         long maxEventId = -1;
+        long count = 0;
 
-        while (merged.length() < numEvents) {
-            JSONObject event = events.remove(0);
+        while (count < numEvents) {
+            JSONObject event = events.get(0);
             maxEventId = event.getLong("eventId");
             merged.put(event);
+            count++;
         }
 
         return new Pair<>(maxEventId, merged);
@@ -1712,16 +1717,16 @@ public class MobilewallaClient {
      * @param events     the events
      * @param maxEventId the max event id
      */
-    protected void makeEventUploadPostRequest(Call.Factory client, List<JSONObject> events, final long maxEventId) {
+    protected void makeEventUploadPostRequest(Call.Factory client, JSONObject events, final long maxEventId) {
         Request authenticateRequest;
         Request.Builder eventRequestBuilder;
         try {
-            RequestBody authenticateRequestBody = RequestBody.create(JSON, mapper.writeValueAsString(new ApiRequest("user", "password")));
+            RequestBody authenticateRequestBody = RequestBody.create(JSON, mapper.writeValueAsString(authenticateReq));
             Request.Builder authenticateRequestBuilder = new Request.Builder()
                     .url(url + POST_AUTHENTICATE)
                     .post(authenticateRequestBody);
 
-            RequestBody eventRequestBody = RequestBody.create(JSON,events.get(0).toString());
+            RequestBody eventRequestBody = RequestBody.create(JSON, events.toString());
             eventRequestBuilder = new Request.Builder()
                     .url(url + POST_EVENT)
                     .post(eventRequestBody);
@@ -1742,9 +1747,9 @@ public class MobilewallaClient {
                 try {
                     ApiResponse authenticateApiResponse = mapper.readValue(response.string(), ApiResponse.class);
                     bearerToken = authenticateApiResponse.getToken();
-                    logger.i(TAG, "Success called an authenticate API");
+                    logger.d(TAG, "Successfully called an authenticate API");
                 } catch (Exception e) {
-                    logger.d(TAG, "Error in calling authenticate API");
+                    logger.e(TAG, "Error in calling authenticate API");
                 }
             }
 
@@ -1757,8 +1762,7 @@ public class MobilewallaClient {
             ResponseBody response = eventResponse.body();
             ApiResponse apiResponse = mapper.readValue(response.string(), ApiResponse.class);
             if (apiResponse.getMessage().equals("Received successfully.")) {
-                logger.i(TAG, "Successfully posted an event to API server");
-                logger.i(TAG, "Pending events in DB " + dbHelper.getTotalEventCount());
+                logger.d(TAG, "Successfully posted an event to API server");
                 uploadSuccess = true;
                 logThread.post(() -> {
                     if (maxEventId >= 0) dbHelper.removeEvents(maxEventId);

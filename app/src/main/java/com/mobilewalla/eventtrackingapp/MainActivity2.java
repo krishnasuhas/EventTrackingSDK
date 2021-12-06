@@ -75,7 +75,7 @@ public class MainActivity2 extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        btn_postEvent.setOnClickListener(v -> client.logEvent("suhas_event_type", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
+        btn_postEvent.setOnClickListener(v -> client.logEvent("003", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
     }
 
     private void setViews() {
