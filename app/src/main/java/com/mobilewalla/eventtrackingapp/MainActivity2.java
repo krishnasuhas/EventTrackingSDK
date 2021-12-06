@@ -1,8 +1,6 @@
 package com.mobilewalla.eventtrackingapp;
 
-import static com.mobilewalla.eventtracking.client.MobilewallaClient.getService;
-import static com.mobilewalla.eventtracking.util.Utils.getResponse;
-import static com.mobilewalla.eventtracking.util.Utils.isDeviceConnected;
+import static android.util.Log.DEBUG;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,9 +11,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.android.volley.VolleyError;
-import com.mobilewalla.eventtracking.client.MobilewallaClient;
-import com.mobilewalla.eventtracking.models.Response;
+import com.mobilewalla.eventtracking.api.Mobilewalla;
+import com.mobilewalla.eventtracking.api.MobilewallaClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -60,12 +57,11 @@ public class MainActivity2 extends AppCompatActivity {
     }
 
     private void setupPostEvent() {
-        MobilewallaClient.initialize(this, response -> {
-            Response apiResponse = getResponse(response);
-            tv_response.append("Event : " + apiResponse.getMessage() + "\n\n");
-        }, error -> processError(error, "Event : "));
+        MobilewallaClient client = Mobilewalla.getInstance()
+                .initialize(getApplicationContext(), sessionManager.getUsername())
+                .enableForegroundTracking(getApplication());
+        client.setLogLevel(DEBUG);
 
-        getService().setUserId(sessionManager.getUsername());
         JSONObject eventProperties = new JSONObject();
         JSONObject userProperties = new JSONObject();
         JSONObject globalUserProperties = new JSONObject();
@@ -79,7 +75,7 @@ public class MainActivity2 extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        btn_postEvent.setOnClickListener(v -> getService().logEvent("eventType101", 345L, eventProperties, userProperties, globalUserProperties, groupProperties));
+        btn_postEvent.setOnClickListener(v -> client.logEvent("suhas_event_type", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
     }
 
     private void setViews() {
@@ -87,17 +83,5 @@ public class MainActivity2 extends AppCompatActivity {
         tv_response = findViewById(R.id.tv_response);
         tv_response.setMovementMethod(new ScrollingMovementMethod());
         bt_logout = findViewById(R.id.btn_logout);
-    }
-
-    private void processError(VolleyError error, String s) {
-        try {
-            if (isDeviceConnected(this)) {
-                String responseBody = new String(error.networkResponse.data);
-                JSONObject response = new JSONObject(responseBody);
-                Response apiResponse = getResponse(response);
-                tv_response.append(s + apiResponse.getMessage() + "\n\n");
-            }
-        } catch (Exception ignored) {
-        }
     }
 }

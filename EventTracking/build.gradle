@@ -11,6 +11,7 @@ android {
         targetSdk 31
         versionCode 1
         versionName "1.0"
+        buildConfigField "String", "MOBILEWALLA_VERSION", "\"${version}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -31,15 +32,13 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-    implementation 'com.android.volley:volley:1.2.1'
-    implementation 'androidx.room:room-runtime:2.3.0'
     implementation 'com.google.code.gson:gson:2.8.8'
     implementation 'org.projectlombok:lombok:1.18.20'
+    implementation 'com.squareup.okhttp3:okhttp:4.2.2'
     implementation 'androidx.appcompat:appcompat:1.4.0'
     implementation 'com.google.android.material:material:1.4.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.6.3'
 
-    annotationProcessor 'androidx.room:room-compiler:2.3.0'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

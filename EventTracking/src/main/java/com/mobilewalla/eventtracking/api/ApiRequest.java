@@ -1,4 +1,5 @@
-package com.mobilewalla.eventtracking.models;
+package com.mobilewalla.eventtracking.api;
+
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -12,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class Request {
+public class ApiRequest {
     String username;
     String password;
 }

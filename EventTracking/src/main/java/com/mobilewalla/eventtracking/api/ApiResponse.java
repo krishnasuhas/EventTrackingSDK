@@ -1,4 +1,4 @@
-package com.mobilewalla.eventtracking.models;
+package com.mobilewalla.eventtracking.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class Response implements Serializable {
+public class ApiResponse implements Serializable {
     private String token;
     private String message;
 }

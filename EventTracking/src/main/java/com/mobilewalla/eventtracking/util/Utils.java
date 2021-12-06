@@ -1,34 +1,71 @@
 package com.mobilewalla.eventtracking.util;
 
-import static com.mobilewalla.eventtracking.client.MobilewallaClient.getMapper;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 
-import com.mobilewalla.eventtracking.log.LogUtil;
-import com.mobilewalla.eventtracking.model.Event;
-import com.mobilewalla.eventtracking.models.Response;
+import com.mobilewalla.eventtracking.api.Constants;
+import com.mobilewalla.eventtracking.api.MobilewallaLog;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class Utils {
+    private static final String TAG = Utils.class.getName();
+
+    private static final MobilewallaLog logger = MobilewallaLog.getLogger();
+
+    /**
+     * Do a shallow copy of a JSONObject. Takes a bit of code to avoid
+     * stringify and reparse given the API.
+     */
+    public static JSONObject cloneJSONObject(final JSONObject obj) {
+        if (obj == null) {
+            return null;
+        }
+
+        if (obj.length() == 0) {
+            return new JSONObject();
+        }
+
+        // obj.names returns null if the json obj is empty.
+        JSONArray nameArray = null;
+        try {
+            nameArray = obj.names();
+        } catch (ArrayIndexOutOfBoundsException e) {
+            logger.e(TAG, e.toString());
+        }
+        int len = (nameArray != null ? nameArray.length() : 0);
+
+        String[] names = new String[len];
+        for (int i = 0; i < len; i++) {
+            names[i] = nameArray.optString(i);
+        }
+
+        try {
+            return new JSONObject(obj, names);
+        } catch (JSONException e) {
+            logger.e(TAG, e.toString());
+            return null;
+        }
+    }
+
     public static boolean isEmptyString(String s) {
-        LogUtil.i("");
         return (s == null || s.length() == 0);
+    }
+
+    public static String normalizeInstanceName(String instance) {
+        if (isEmptyString(instance)) {
+            instance = Constants.DEFAULT_INSTANCE;
+        }
+        return instance.toLowerCase();
     }
 
     public static boolean checkLocationPermissionAllowed(Context context) {
         return checkPermissionAllowed(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
                 checkPermissionAllowed(context, Manifest.permission.ACCESS_FINE_LOCATION);
-    }
-
-    public static String getString(JSONObject properties) {
-        if (properties != null) return properties.toString();
-        else return null;
     }
 
     static boolean checkPermissionAllowed(Context context, String permission) {
@@ -48,28 +85,6 @@ public class Utils {
             return hasPermission;
         } else {
             return true;
-        }
-    }
-
-    public static boolean isDeviceConnected(Context context) {
-        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo netInfo = cm.getActiveNetworkInfo();
-        return netInfo != null && netInfo.isConnectedOrConnecting();
-    }
-
-    public static Response getResponse(JSONObject response) {
-        try {
-            return getMapper().readValue(response.toString(), Response.class);
-        } catch (Exception e) {
-            return new Response("", e.getMessage());
-        }
-    }
-
-    public static JSONObject getJsonRequest(Event e) {
-        try {
-            return new JSONObject(getMapper().writeValueAsString(e));
-        } catch (Exception ignored) {
-            return new JSONObject();
         }
     }
 }
