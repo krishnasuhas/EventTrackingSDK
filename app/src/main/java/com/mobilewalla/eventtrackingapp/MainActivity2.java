@@ -56,7 +56,7 @@ public class MainActivity2 extends AppCompatActivity {
 
     private void setupPostEvent() {
         MobilewallaClient client = Mobilewalla.getInstance()
-                .initialize(getApplicationContext(), "userId_1")
+                .initialize(getApplicationContext(), sessionManager.getUsername())
                 .enableForegroundTracking(getApplication());
 
         JSONObject eventProperties = new JSONObject();
