@@ -142,7 +142,7 @@ public class MobilewallaClient {
      */
     Throwable lastError;
     /**
-     * The url for Mobilewalla API endpoint
+     * The url and credentials for Mobilewalla API endpoint
      */
     String url = Constants.API_BASE_URL;
     String serverUsername = Constants.API_USERNAME;
@@ -692,9 +692,7 @@ public class MobilewallaClient {
      * @return the MobilewallaClient
      */
     public MobilewallaClient setServerUrl(String serverUrl) {
-        if (!Utils.isEmptyString(serverUrl)) {
-            url = serverUrl;
-        }
+        url = serverUrl;
         return this;
     }
 
@@ -705,9 +703,7 @@ public class MobilewallaClient {
      * @return the MobilewallaClient
      */
     public MobilewallaClient setServerUsername(String username) {
-        if (!Utils.isEmptyString(username)) {
-            this.serverUsername = username;
-        }
+        this.serverUsername = username;
         return this;
     }
 
@@ -718,9 +714,7 @@ public class MobilewallaClient {
      * @return the MobilewallaClient
      */
     public MobilewallaClient setServerPassword(String password) {
-        if (!Utils.isEmptyString(password)) {
-            this.serverPassword = password;
-        }
+        this.serverPassword = password;
         return this;
     }
 

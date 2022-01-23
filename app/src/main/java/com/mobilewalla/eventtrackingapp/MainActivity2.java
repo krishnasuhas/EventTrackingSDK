@@ -1,7 +1,5 @@
 package com.mobilewalla.eventtrackingapp;
 
-import static android.util.Log.DEBUG;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -11,14 +9,11 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.mobilewalla.eventtracking.api.Constants;
 import com.mobilewalla.eventtracking.api.Mobilewalla;
 import com.mobilewalla.eventtracking.api.MobilewallaClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity2 extends AppCompatActivity {
     Button btn_postEvent, bt_logout;
@@ -77,7 +72,10 @@ public class MainActivity2 extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        btn_postEvent.setOnClickListener(v -> client.logEvent("eventType_1", eventProperties, null, userProperties, groupProperties, globalUserProperties, System.currentTimeMillis(), false));
+        btn_postEvent.setOnClickListener(v -> {
+            long dateInMillis = System.currentTimeMillis();
+            client.logEvent("eventType_" + dateInMillis, eventProperties, null, userProperties, groupProperties, globalUserProperties, dateInMillis, false);
+        });
     }
 
     private void setViews() {
